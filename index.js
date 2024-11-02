@@ -18,6 +18,7 @@ app.use(express.json());
 database.connect();
 
 const System = require('./model/system');
+const Notification = require('./model/notification');
 
 
 
@@ -66,13 +67,13 @@ app.listen(3000, () => {
 
 
 app.post('/send-notification', async (req, res) => {
-  const { email, phone, message } = req.body;
+  const { email, phone, message , type } = req.body;
 
   try {
     if (email) {
-      const name = "John Doe";
-const alertType = "Security Breach";
-const alertMessage = "An unauthorized access attempt was detected ";
+      const name = "Sai Anish";
+const alertType =  type;
+const alertMessage = message;
 const timeOfAlert = new Date().toLocaleString();
 
 
@@ -89,9 +90,94 @@ const emailContent = alertNotificationEmail(name, alertType, alertMessage, timeO
       const res =  await sendSMS(phone, message);
       console.log("sending the " , res);
     }
+
+    await Notification.create({
+      alertType: type,
+      alertMessage: message,
+    });
+
+
     res.status(200).json({ success: true, message: 'Notification sent!' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Failed to send notification' });
   }
 });
+
+
+app.get('/status', async (req, res) => { 
+
+
+    try {
+        const system = await System.findOne({ systemId: 1 });
+        res.status(200).json({ success: true, data: system });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Failed to get system status' });
+    }
+
+
+})
+
+
+app.post('/set-status', async (req, res) => {
+
+    const { systemStatus, password } = req.body;
+
+    try {
+        const system = await System.findOne({ systemId: 1 });
+        if (system.password !== password) {
+            return res.status(400).json({ success: false, message: 'Invalid password' });
+        }
+
+        system.systemStatus = systemStatus;
+        await system.save();
+        res.status(200).json({ success: true, message: 'System status updated successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Failed to update system status' });
+    }
+ })
+
+
+ app.get('/notifications', async (req, res) => { 
+
+    try {
+        const notifications = await Notification.find();
+        res.status(200).json({ success: true, data: notifications });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Failed to get notifications' });
+    }
+
+ })
+
+
+
+app.get('/notifications/:id', async (req, res) => {
+
+    const { id } = req.params;
+
+    try {
+        const notification = await Notification.findById(id);
+        res.status(200).json({ success: true, data: notification });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Failed to get notification' });
+    }
+
+})
+
+
+app.get('/system' , async (req, res) => { 
+
+
+    try {
+        const system = await System.findOne({ systemId: 1 });
+        var recentActivity = await Notification.find().sort({ createdAt: -1 }).limit(5);
+        res.status(200).json({ success: true, data: { system, recentActivity } });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Failed to get system' });
+    }
+})
