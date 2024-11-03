@@ -7,6 +7,11 @@ const database = require('./config/database')
 const mailSender = require("./utils/mailSender")
 const alertNotificationEmail = require('./mail/alert').alertNotificationEmail;
 
+const { Expo } = require('expo-server-sdk');
+const expo = new Expo();
+const Device = require('./model/device');
+
+
 dotenv.config();
 
 
@@ -65,9 +70,71 @@ app.listen(3000, () => {
 );
 
 
+async function sendRemoteNotification( 
+
+ type , message1 
+
+) { 
+    const device = await Device.findOne({ userId: "2" });
+    // console.log(device.expoPushToken);
+    // console.log(device);
+    const expoPushToken =  device.expoPushToken;
+    const message = {
+        to: expoPushToken,
+        sound: 'default',
+        title:  type,
+        body:  message1,
+        data: { someData: 'goes here'},
+    };
+
+    try {
+        await expo.sendPushNotificationsAsync([message]);
+        console.log('Notification sent');
+    } catch (error) {
+        console.error('Error sending notification:', error);
+    }
+
+}
+
+
+// sendRemoteNotification();
+
+
+
+app.post('/register-push-token', async (req, res) => {
+  console.log(req.body);
+  const { userId, expoPushToken } = req.body;
+  
+  if (!Expo.isExpoPushToken(expoPushToken)) {
+    return res.status(400).json({ success: false, message: 'Invalid Expo push token' });
+  }
+
+  try {
+    await Device.findOneAndUpdate(
+      { userId },
+      { expoPushToken },
+      { upsert: true }
+    );
+    res.status(200).json({ success: true, message: 'Push token registered' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to register token' });
+  }
+});
+
+
+
+
+
 
 app.post('/send-notification', async (req, res) => {
-  const { email, phone, message , type } = req.body;
+  let { email, phone, message , type ,remote} = req.body;
+
+  // message = message+new Date().toLocaleString(); 
+   // i want to add current time to the message   
+
+    message = message + " " + new Date().toLocaleString();
+
+   console.log("message is " , message);
 
   try {
     if (email) {
@@ -89,6 +156,9 @@ const emailContent = alertNotificationEmail(name, alertType, alertMessage, timeO
     if (phone) {
       const res =  await sendSMS(phone, message);
       console.log("sending the " , res);
+    }
+    if (remote) {
+      await sendRemoteNotification( type , message );
     }
 
     await Notification.create({
