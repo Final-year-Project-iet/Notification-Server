@@ -7,6 +7,8 @@ const {cloudinaryConnect} = require("./config/cloudinary");
 const fileUpload = require("express-fileupload");
 const { uploadImageToCloudinary } = require("./utils/imageUploader");
 const rateLimit = require('express-rate-limit');
+const cors = require('cors');
+
 
 
 
@@ -31,6 +33,16 @@ app.use(fileUpload({
 }));
 
 
+
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200
+}));
+
+
 database.connect();
 cloudinaryConnect();
 
@@ -42,7 +54,7 @@ const Notification = require('./model/notification');
 
 const notificationLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 5, 
+  max: 3, 
   message: {
       success: false,
       message: 'Too many notifications sent. Please try again later.'
